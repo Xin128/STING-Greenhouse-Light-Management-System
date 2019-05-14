@@ -1,0 +1,96 @@
+#include "TM1637.h" 
+
+/* Macro Define */
+#define CLK               38                  /* 4-Digit Display clock pin */
+#define DIO               37                 /* 4-Digit Display data pin */
+#define LIGHT_SENSOR      24                 /* pin connected to the Light Sensor */
+#define BUZZER_PIN 39 /* sig pin of the buzzer */
+
+#define LED RED_LED /* LED pin */
+#define THRESHOLD_VALUE 1000 
+#define ON HIGH /* led on */
+#define OFF LOW  /* led off */
+#define _handle_led(x) digitalWrite(LED, x) /* handle led */
+
+/* Global Variables */
+TM1637 tm1637(CLK, DIO);                  /* 4-Digit Display object */
+int analog_value = 0;                     /* variable to store the value coming from Light Sensor */
+int8_t bits[4] = {0};                     /* array to store the single digits of the value */
+
+// buzzer initialization 
+int length = 15; /* the number of notes */
+char notes[] = "ccggaagffeeddc ";
+int beats[] = { 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 4 }; 
+int tempo = 300;
+
+/* the setup() method runs once, when the sketch starts */
+void setup() 
+{
+  /* Initialize 4-Digit Display */
+  tm1637.init();
+  tm1637.set(BRIGHT_TYPICAL);
+  /* Initialize led pin */
+  pinMode(LED, OUTPUT);
+  /* set buzzer pin as output */
+  pinMode(BUZZER_PIN, OUTPUT);
+}
+
+/* the loop() method runs over and over again */
+void loop() 
+{   
+  analog_value = analogRead(LIGHT_SENSOR);        /* read the value from the sensor */
+  /* if the value is smaller than threshold, turn on led */
+  if(analog_value < THRESHOLD_VALUE) {
+  _handle_led(ON);
+  digitalWrite(LED, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(100);                // wait for a bit
+  digitalWrite(LED, LOW);    // turn the LED off by making the voltage LOW
+  delay(100);                // wait for a bit
+  
+    /*repeatedly play the notes if threshold value is not exceeded*/
+    for(int i = 0; i < length; i++) {
+      if(notes[i] == ' ') {
+           delay(beats[i] * tempo);
+      } 
+      else {
+            playNote(notes[i], beats[i] * tempo);
+        }
+      delay(tempo / 2); /* delay between notes */
+    }
+  }
+ 
+  _handle_led(OFF);    
+  memset(bits, 0, 4);                             /* reset array before we use it */
+  
+  for(int i = 3; i >= 0; i--) 
+  {
+    /* Convert the value to individual decimal digits for display */
+    bits[i] = analog_value % 10;
+    analog_value = analog_value / 10;  
+    tm1637.display(i, bits[i]);                 /* display value on 4-Digit Display */
+  }
+  delay(100);  //small delay so that the number doesn't change too quickly to read
+}
+
+/* play tone */
+void playTone(int tone, int duration) {
+    for (long i = 0; i < duration * 1000L; i += tone * 2) {
+        digitalWrite(BUZZER_PIN, HIGH);
+        delayMicroseconds(tone);
+        digitalWrite(BUZZER_PIN, LOW);
+        delayMicroseconds(tone);
+     }
+
+}
+
+/* play note */
+void playNote(char note, int duration) {
+    char names[] = { 'c', 'd', 'e', 'f', 'g', 'a', 'b', 'C' };
+    int tones[] = { 1915, 1700, 1519, 1432, 1275, 1136, 1014, 956 };
+    // play the tone corresponding to the note name
+    for (int i = 0; i < 8; i++) {
+        if (names[i] == note) {
+            playTone(tones[i], duration);
+        }
+    }
+}
